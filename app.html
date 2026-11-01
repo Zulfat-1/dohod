@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<link rel="manifest" href="app.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Доход — Расход</title>
+<style>
+:root{
+  --bg:#f6f7f6; --card:#ffffff; --text:#1c1f1e; --muted:#6b7370; --line:#e3e7e5;
+  --in:#0f766e; --out:#b4412f; --accent:#0f766e; --accent-text:#ffffff;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121514; --card:#1c211f; --text:#eef1ef; --muted:#97a19d; --line:#2c3331;
+    --in:#4fd1c0; --out:#ff8f7a; --accent:#2dd4bf; --accent-text:#062421;
+  }
+}
+*{box-sizing:border-box}
+html{height:100%}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--text);
+  font:17px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+.wrap{max-width:560px;margin:0 auto;padding:12px 14px 40px}
+.month{display:flex;align-items:center;justify-content:space-between;margin:6px 0 12px}
+.month button{width:44px;height:44px;border:0;border-radius:12px;background:var(--card);color:var(--text);font-size:22px}
+.month h1{font-size:20px;margin:0;font-weight:650}
+.sum{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
+.sum div{background:var(--card);border-radius:14px;padding:10px 10px 9px}
+.sum small{display:block;color:var(--muted);font-size:12px}
+.sum b{font-size:17px;white-space:nowrap}
+#sIn{color:var(--in)} #sOut{color:var(--out)}
+.form{background:var(--card);border-radius:16px;padding:12px;margin-bottom:16px}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}
+.seg button{height:42px;border:1px solid var(--line);border-radius:10px;background:transparent;color:var(--muted);font-size:16px}
+.seg button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-text);font-weight:600}
+.row{display:flex;gap:8px}
+input,textarea{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+input:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:0}
+#line{flex:1}
+#date{width:auto;flex:0 0 150px}
+.add{width:100%;height:46px;margin-top:8px;border:0;border-radius:12px;background:var(--accent);color:var(--accent-text);font-size:17px;font-weight:650}
+.hint{color:var(--muted);font-size:13px;margin:8px 2px 0}
+h2{font-size:14px;color:var(--muted);font-weight:600;margin:18px 4px 6px;text-transform:uppercase;letter-spacing:.04em}
+.day{background:var(--card);border-radius:14px;margin-bottom:8px;overflow:hidden}
+.dh{display:flex;justify-content:space-between;padding:9px 12px 4px;color:var(--muted);font-size:14px}
+.it{display:flex;align-items:center;gap:8px;padding:7px 12px;border-top:1px solid var(--line)}
+.it:first-of-type{border-top:0}
+.it .a{font-weight:650;min-width:70px}
+.it .t{flex:1;overflow-wrap:anywhere}
+.it.in .a{color:var(--in)} .it.out .a{color:var(--out)}
+.it button{border:0;background:transparent;color:var(--muted);font-size:20px;width:36px;height:36px;border-radius:8px}
+.empty{color:var(--muted);text-align:center;padding:22px 0}
+details{background:var(--card);border-radius:14px;padding:4px 12px;margin-top:16px}
+summary{padding:10px 0;font-weight:600;cursor:pointer}
+.cat{display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid var(--line)}
+.tools{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}
+.tools button{height:46px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);font-size:15px}
+dialog{width:min(92vw,520px);border:0;border-radius:16px;background:var(--card);color:var(--text);padding:16px}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog textarea{height:260px;resize:vertical}
+dialog .row{margin-top:10px}
+dialog .row button{flex:1;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-size:16px}
+dialog .row button.p{background:var(--accent);border-color:var(--accent);color:var(--accent-text);font-weight:650}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
+  background:var(--text);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:15px;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="month">
+    <button id="prev" aria-label="Предыдущий месяц">‹</button>
+    <h1 id="mTitle"></h1>
+    <button id="next" aria-label="Следующий месяц">›</button>
+  </div>
+
+  <div class="sum">
+    <div><small>Доходы</small><b id="sIn">0</b></div>
+    <div><small>Расходы</small><b id="sOut">0</b></div>
+    <div><small>Остаток</small><b id="sLeft">0</b></div>
+  </div>
+
+  <div class="form">
+    <div class="seg">
+      <button id="bOut" class="on" type="button">Расход</button>
+      <button id="bIn" type="button">Доход</button>
+    </div>
+    <div class="row">
+      <input id="line" type="text" inputmode="text" autocomplete="off" placeholder="578 продукты" enterkeyhint="done">
+      <input id="date" type="date">
+    </div>
+    <button class="add" id="add" type="button">Добавить</button>
+    <p class="hint">Пиши, как в заметках: сумма и слово. Например «578 продукты».</p>
+  </div>
+
+  <h2>Доходы</h2>
+  <div id="incomes"></div>
+
+  <h2>Расходы по дням</h2>
+  <div id="days"></div>
+
+  <details id="cats"><summary>Расходы по статьям</summary><div id="catList"></div></details>
+
+  <div class="tools">
+    <button id="copy" type="button">Скопировать как заметку</button>
+    <button id="imp" type="button">Вставить из заметок</button>
+  </div>
+</div>
+
+<dialog id="dlg">
+  <b>Вставить из заметок</b>
+  <p class="hint">Вставь весь текст заметки «Доход - Расход». Строки «5 число» задают день. Строки до первого «число» считаются доходами.</p>
+  <textarea id="impText" placeholder="Скопируй заметку и вставь сюда"></textarea>
+  <div class="row">
+    <button type="button" id="impCancel">Отмена</button>
+    <button type="button" id="impGo" class="p">Добавить в приложение</button>
+  </div>
+</dialog>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  var MONTHS=["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
+  var KEY="dohod-rashod-v1";
+  var items=[];
+  try{ var raw=localStorage.getItem(KEY); if(raw) items=JSON.parse(raw)||[]; }catch(e){ items=[]; }
+  var now=new Date();
+  var view={y:now.getFullYear(),m:now.getMonth()};
+  var type="out";
+
+  function save(){ try{ localStorage.setItem(KEY,JSON.stringify(items)); }catch(e){} }
+  function pad(n){ return (n<10?"0":"")+n; }
+  function iso(y,m,d){ return y+"-"+pad(m+1)+"-"+pad(d); }
+  function fmt(n){ return Math.round(n*100)/100 === Math.round(n) ? Math.round(n).toLocaleString("ru-RU") : (Math.round(n*100)/100).toLocaleString("ru-RU"); }
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+  function toast(t){ var el=$("toast"); el.textContent=t; el.classList.add("show"); setTimeout(function(){el.classList.remove("show");},1800); }
+  function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+
+  function inMonth(it){ return it.date.slice(0,7)===view.y+"-"+pad(view.m+1); }
+
+  function defaultDate(){
+    var t=new Date();
+    if(t.getFullYear()===view.y && t.getMonth()===view.m) return iso(view.y,view.m,t.getDate());
+    return iso(view.y,view.m,1);
+  }
+
+  function parseLine(s){
+    s=s.trim().replace(/\u00a0/g," ");
+    if(!s) return null;
+    var m=s.match(/^(\d+(?:[.,]\d+)?)\s*(.*)$/);
+    if(m) return {amount:parseFloat(m[1].replace(",",".")),text:m[2].trim()};
+    m=s.match(/^(.*?)\s*(\d+(?:[.,]\d+)?)$/);
+    if(m) return {amount:parseFloat(m[2].replace(",",".")),text:m[1].trim()};
+    return null;
+  }
+
+  function render(){
+    $("mTitle").textContent=MONTHS[view.m]+" "+view.y;
+    var list=items.filter(inMonth);
+    var inc=list.filter(function(i){return i.type==="in";}).sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:0;});
+    var out=list.filter(function(i){return i.type==="out";});
+    var sIn=inc.reduce(function(s,i){return s+i.amount;},0);
+    var sOut=out.reduce(function(s,i){return s+i.amount;},0);
+    $("sIn").textContent=fmt(sIn); $("sOut").textContent=fmt(sOut); $("sLeft").textContent=fmt(sIn-sOut);
+    $("sLeft").style.color=(sIn-sOut)<0?"var(--out)":"";
+
+    function itemHtml(i,showDate){
+      var d=i.date.slice(8,10)+"."+i.date.slice(5,7);
+      return '<div class="it '+i.type+'"><span class="a">'+fmt(i.amount)+'</span><span class="t">'+esc(i.text||"—")+(showDate?' <span style="color:var(--muted)">'+d+'</span>':'')+'</span><button data-id="'+i.id+'" aria-label="Удалить">×</button></div>';
+    }
+
+    $("incomes").innerHTML = inc.length
+      ? '<div class="day">'+inc.map(function(i){return itemHtml(i,true);}).join("")+'</div>'
+      : '<div class="empty">Доходов пока нет</div>';
+
+    var byDay={};
+    out.forEach(function(i){ (byDay[i.date]=byDay[i.date]||[]).push(i); });
+    var keys=Object.keys(byDay).sort();
+    $("days").innerHTML = keys.length ? keys.map(function(k){
+      var arr=byDay[k], tot=arr.reduce(function(s,i){return s+i.amount;},0);
+      return '<div class="day"><div class="dh"><span>'+parseInt(k.slice(8,10),10)+' число</span><span>'+fmt(tot)+'</span></div>'+arr.map(function(i){return itemHtml(i,false);}).join("")+'</div>';
+    }).join("") : '<div class="empty">Расходов пока нет</div>';
+
+    var cats={};
+    out.forEach(function(i){ var k=(i.text||"без названия").toLowerCase(); cats[k]=(cats[k]||0)+i.amount; });
+    var ck=Object.keys(cats).sort(function(a,b){return cats[b]-cats[a];});
+    $("catList").innerHTML = ck.length ? ck.map(function(k){
+      return '<div class="cat"><span>'+esc(k)+'</span><b>'+fmt(cats[k])+'</b></div>';
+    }).join("") : '<div class="empty">Пока пусто</div>';
+  }
+
+  function setType(t){
+    type=t;
+    $("bOut").classList.toggle("on",t==="out");
+    $("bIn").classList.toggle("on",t==="in");
+  }
+
+  function addFromForm(){
+    var p=parseLine($("line").value);
+    if(!p||!(p.amount>0)){ toast("Напиши сумму, например 578 продукты"); $("line").focus(); return; }
+    var d=$("date").value||defaultDate();
+    items.push({id:uid(),type:type,amount:p.amount,text:p.text,date:d});
+    save();
+    var y=parseInt(d.slice(0,4),10), m=parseInt(d.slice(5,7),10)-1;
+    view={y:y,m:m};
+    $("line").value="";
+    $("date").value=defaultDate();
+    render();
+    $("line").focus();
+  }
+
+  $("add").addEventListener("click",addFromForm);
+  $("line").addEventListener("keydown",function(e){ if(e.key==="Enter"){ e.preventDefault(); addFromForm(); } });
+  $("bOut").addEventListener("click",function(){setType("out");});
+  $("bIn").addEventListener("click",function(){setType("in");});
+  $("prev").addEventListener("click",function(){ view.m--; if(view.m<0){view.m=11;view.y--;} $("date").value=defaultDate(); render(); });
+  $("next").addEventListener("click",function(){ view.m++; if(view.m>11){view.m=0;view.y++;} $("date").value=defaultDate(); render(); });
+
+  document.addEventListener("click",function(e){
+    var b=e.target.closest&&e.target.closest("button[data-id]");
+    if(!b) return;
+    var id=b.getAttribute("data-id");
+    var it=items.filter(function(i){return i.id===id;})[0];
+    if(!it) return;
+    if(confirm("Удалить «"+fmt(it.amount)+" "+(it.text||"")+"»?")){
+      items=items.filter(function(i){return i.id!==id;}); save(); render();
+    }
+  });
+
+  // Копирование в виде заметки
+  $("copy").addEventListener("click",function(){
+    var list=items.filter(inMonth);
+    var lines=["Доход - Расход"];
+    list.filter(function(i){return i.type==="in";}).sort(function(a,b){return a.date<b.date?-1:1;}).forEach(function(i){
+      lines.push(fmt(i.amount).replace(/\s/g,"")+" "+i.text+" "+parseInt(i.date.slice(8,10),10)+"."+i.date.slice(5,7));
+    });
+    var last=new Date(view.y,view.m+1,0).getDate();
+    for(var d=1;d<=last;d++){
+      lines.push("");
+      lines.push(d+" число");
+      list.filter(function(i){return i.type==="out"&&parseInt(i.date.slice(8,10),10)===d;}).forEach(function(i){
+        lines.push(String(i.amount).replace(".",",")+" "+i.text);
+      });
+    }
+    var sIn=list.filter(function(i){return i.type==="in";}).reduce(function(s,i){return s+i.amount;},0);
+    var sOut=list.filter(function(i){return i.type==="out";}).reduce(function(s,i){return s+i.amount;},0);
+    lines.push("","ИТОГО","Доходов "+fmt(sIn),"Расходов "+fmt(sOut),"Остаток "+fmt(sIn-sOut));
+    var text=lines.join("\n");
+    function ok(){ toast("Скопировано"); }
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(ok,function(){ fallback(); });
+    } else fallback();
+    function fallback(){
+      var ta=document.createElement("textarea"); ta.value=text; document.body.appendChild(ta); ta.select();
+      try{ document.execCommand("copy"); ok(); }catch(e){ toast("Не удалось скопировать"); }
+      document.body.removeChild(ta);
+    }
+  });
+
+  // Импорт из заметок
+  $("imp").addEventListener("click",function(){ $("impText").value=""; $("dlg").showModal(); });
+  $("impCancel").addEventListener("click",function(){ $("dlg").close(); });
+  $("impGo").addEventListener("click",function(){
+    var lines=$("impText").value.split(/\r?\n/);
+    var day=0, added=0, first=null;
+    lines.forEach(function(raw){
+      var s=raw.replace(/\u00a0/g," ").trim();
+      if(!s) return;
+      var dm=s.match(/^(\d{1,2})\s*число$/i);
+      if(dm){ day=parseInt(dm[1],10); return; }
+      if(/^(доход|расход|итого|остаток)/i.test(s)) return;
+      var date=null;
+      if(day===0){
+        var m=s.match(/^(.*?)\s*(\d{1,2})\s*\.\s*(\d{1,2})$/);
+        if(m && m[1]){ s=m[1]; date=iso(view.y,parseInt(m[3],10)-1,parseInt(m[2],10)); }
+        else date=iso(view.y,view.m,1);
+      } else {
+        date=iso(view.y,view.m,day);
+      }
+      var p=parseLine(s);
+      if(!p||!(p.amount>0)) return;
+      items.push({id:uid(),type:day===0?"in":"out",amount:p.amount,text:p.text,date:date});
+      added++; if(!first) first=date;
+    });
+    if(added){
+      save();
+      view={y:parseInt(first.slice(0,4),10),m:parseInt(first.slice(5,7),10)-1};
+      $("date").value=defaultDate();
+      render();
+      toast("Добавлено записей: "+added);
+    } else toast("Ничего не найдено");
+    $("dlg").close();
+  });
+
+  $("date").value=defaultDate();
+  render();
+  if("serviceWorker" in navigator){ window.addEventListener("load",function(){ navigator.serviceWorker.register("app-sw.js").catch(function(){}); }); }
+})();
+</script>
+</body>
+</html>
